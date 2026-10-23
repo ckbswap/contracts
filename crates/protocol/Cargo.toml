@@ -1,0 +1,7 @@
+[package]
+name = "ckb-swap-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+uint = { version = "0.10", default-features = false }

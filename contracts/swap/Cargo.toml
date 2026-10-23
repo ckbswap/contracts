@@ -1,0 +1,9 @@
+[package]
+name = "ckb-swap-script"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ckb-std = { version = "1.1", default-features = false, features = ["allocator", "ckb-types", "libc", "build-with-clang"] }
+blake2b-ref = "0.3"
+ckb-swap-protocol = { path = "../../crates/protocol" }
