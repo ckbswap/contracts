@@ -1,0 +1,1549 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#151515" />
+    <meta
+      name="description"
+      content="Explore how a CKB to SWAP exchange consumes and creates Cells in one atomic transaction."
+    />
+    <title>Ckb Swap · A swap, cell by cell</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #151515;
+        --panel: #232323;
+        --raised: #292929;
+        --line: #363636;
+        --text: #f2f2f2;
+        --muted: #a1a1a1;
+        --accent: #83dff1;
+        --accent-soft: #203237;
+        --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-synthesis: none;
+        background: var(--bg);
+        color: var(--text);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button,
+      summary {
+        cursor: pointer;
+      }
+      button {
+        color: inherit;
+      }
+      button,
+      a,
+      input,
+      summary {
+        -webkit-tap-highlight-color: transparent;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 5px;
+      }
+      button {
+        border: 0;
+      }
+      svg {
+        flex: none;
+      }
+      p,
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+      .shell {
+        width: min(1280px, calc(100% - 80px));
+        margin-inline: auto;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 100px;
+        gap: 20px;
+        border-bottom: 1px solid #292929;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 13px;
+        font-size: 23px;
+        font-weight: 700;
+        letter-spacing: -0.8px;
+        white-space: nowrap;
+      }
+      .logo {
+        display: grid;
+        grid-template-columns: repeat(2, 10px);
+        gap: 4px;
+        transform: rotate(-9deg);
+      }
+      .logo i {
+        width: 10px;
+        height: 10px;
+        border-radius: 2.5px;
+        background: var(--text);
+      }
+      .logo i:last-child {
+        background: var(--accent);
+      }
+      .header-meta {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        font-size: 13px;
+      }
+      .eyebrow {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+      }
+      .header-meta .eyebrow {
+        border-left: 1px solid var(--line);
+        padding-left: 25px;
+      }
+      .site-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 13px;
+        border-radius: 10px;
+        color: var(--muted);
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .site-link:hover {
+        background: var(--panel);
+        color: var(--text);
+      }
+      .site-link svg {
+        width: 15px;
+        height: 15px;
+      }
+      .intro {
+        padding: 46px 0 30px;
+      }
+      .intro-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        flex: none;
+      }
+      h1 {
+        font-size: clamp(30px, 3.7vw, 44px);
+        font-weight: 550;
+        letter-spacing: -1.7px;
+        line-height: 1.15;
+      }
+      .intro p {
+        color: var(--muted);
+        margin-top: 13px;
+        max-width: 670px;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+      }
+      .quote {
+        position: sticky;
+        top: 24px;
+      }
+      .section-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 17px;
+      }
+      .section-label h2 {
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 5px 8px;
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .asset-box {
+        background: var(--panel);
+        border-radius: 22px;
+        padding: 22px;
+      }
+      .asset-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .asset-heading label,
+      .asset-heading > span {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 1.1px;
+        text-transform: uppercase;
+      }
+      .token {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .token-icon {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--text);
+        color: #151515;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .token-icon.swap {
+        background: var(--accent);
+      }
+      .amount {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        margin: 18px 0;
+        padding: 0;
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: var(--text);
+        font-size: 38px;
+        letter-spacing: -1.6px;
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+      }
+      input.amount {
+        appearance: textfield;
+        -moz-appearance: textfield;
+      }
+      input.amount::-webkit-inner-spin-button,
+      input.amount::-webkit-outer-spin-button {
+        appearance: none;
+        margin: 0;
+      }
+      .output-amount {
+        font-size: 30px;
+        color: var(--accent);
+        overflow-wrap: anywhere;
+      }
+      .asset-caption {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .range {
+        width: 100%;
+        margin: 8px 0 0;
+        height: 22px;
+        cursor: pointer;
+        accent-color: var(--accent);
+      }
+      .range-limits {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .presets {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin: 14px 0 0;
+      }
+      .presets button {
+        padding: 7px 0;
+        border-radius: 7px;
+        background: #303030;
+        color: #bdbdbd;
+        font-size: 11px;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .presets button:hover {
+        background: #3a3a3a;
+        color: var(--text);
+      }
+      .presets button[aria-pressed='true'] {
+        background: var(--accent-soft);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px #39555d;
+      }
+      .quote-arrow {
+        position: relative;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        margin: -11px auto;
+        border: 5px solid var(--bg);
+        border-radius: 11px;
+        background: var(--raised);
+        z-index: 1;
+      }
+      .quote-arrow svg {
+        width: 16px;
+        height: 16px;
+      }
+      .buy-box {
+        background: transparent;
+        border: 1px solid var(--line);
+        padding-top: 26px;
+      }
+      .quote-facts {
+        margin: 21px 2px 0;
+        display: grid;
+        gap: 13px;
+      }
+      .quote-facts div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .quote-facts dt {
+        color: var(--muted);
+      }
+      .quote-facts dd {
+        margin: 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .pool-baseline {
+        margin-top: 23px;
+        border-top: 1px solid var(--line);
+        padding-top: 20px;
+      }
+      .pool-baseline p {
+        margin-top: 8px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .model-note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      .error {
+        color: #f0b9a4;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-top: 10px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .diagram-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 17px;
+        min-height: 25px;
+      }
+      .diagram-header h2 {
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .atomic-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .atomic-label svg {
+        width: 13px;
+        height: 13px;
+        color: var(--accent);
+      }
+      .column-heads,
+      .cell-pair {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+        gap: 8px;
+      }
+      .column-heads {
+        margin-bottom: 13px;
+      }
+      .column-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding-inline: 3px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .column-title strong {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .column-title.after strong {
+        color: var(--accent);
+      }
+      .cell-pair {
+        align-items: stretch;
+        margin-bottom: 12px;
+      }
+      .cell {
+        min-width: 0;
+        background: #1d1d1d;
+        border: 1px solid var(--line);
+        border-radius: 17px;
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+      .cell.new {
+        background: #202526;
+        border-color: #354549;
+      }
+      .cell-pair:hover .cell {
+        border-color: #626262;
+      }
+      .cell-pair:hover .cell.new {
+        border-color: #63828a;
+      }
+      .cell-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px 17px 11px;
+      }
+      .cell-top h3 {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .cell-icon {
+        width: 15px;
+        height: 15px;
+        color: var(--muted);
+      }
+      .new .cell-icon {
+        color: var(--accent);
+      }
+      .badge {
+        font-size: 9px;
+        line-height: 1.5;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-radius: 4px;
+        background: #303030;
+        color: #b4b4b4;
+        padding: 3px 5px;
+        white-space: nowrap;
+      }
+      .new .badge {
+        background: #2c4146;
+        color: var(--accent);
+      }
+      .outpoint {
+        display: block;
+        padding: 0 17px 14px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+      .cell-values {
+        display: grid;
+        gap: 9px;
+        padding: 0 17px 16px;
+        margin: 0;
+      }
+      .cell-values div {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .cell-values dt {
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .cell-values dd {
+        margin: 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      .cell-values .primary {
+        display: block;
+        padding-bottom: 11px;
+        margin-bottom: 1px;
+        border-bottom: 1px solid #333b3d;
+      }
+      .cell-values .primary dt {
+        font-size: 10px;
+        margin-bottom: 5px;
+      }
+      .cell-values .primary dd {
+        font-size: 18px;
+        text-align: left;
+        letter-spacing: -0.4px;
+      }
+      .cell-values .primary dd small {
+        font-size: 10px;
+        letter-spacing: 0;
+        color: var(--muted);
+      }
+      .changed {
+        color: var(--accent);
+      }
+      .cell-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 9px 17px;
+        background: #ffffff03;
+        border-top: 1px solid #ffffff08;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.5;
+      }
+      .cell-footer span:last-child {
+        white-space: nowrap;
+      }
+      .connector {
+        align-self: center;
+        color: #707070;
+        display: grid;
+        place-items: center;
+      }
+      .connector svg {
+        width: 23px;
+        height: 23px;
+      }
+      .result {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: var(--accent-soft);
+        color: #d6eef3;
+        font-size: 12px;
+        line-height: 1.65;
+        margin-top: 18px;
+      }
+      .result svg {
+        width: 16px;
+        height: 16px;
+        color: var(--accent);
+        margin-top: 2px;
+      }
+      .technical {
+        margin-top: 18px;
+        border-top: 1px solid var(--line);
+      }
+      .technical summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        list-style: none;
+        padding: 16px 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .technical summary::-webkit-details-marker {
+        display: none;
+      }
+      .technical summary::after {
+        content: '+';
+        font-size: 18px;
+        font-weight: 400;
+      }
+      .technical[open] summary::after {
+        content: '−';
+      }
+      .technical-content {
+        padding: 0 2px 18px;
+        display: grid;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.75;
+      }
+      .technical-content strong {
+        font-weight: 500;
+        color: var(--text);
+      }
+      .technical-content code {
+        font-family: var(--mono);
+        color: #c9dadd;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .formula {
+        padding: 13px;
+        background: #1d1d1d;
+        border-radius: 10px;
+      }
+      .unchanged {
+        margin: 34px 0 0;
+        padding-top: 26px;
+        border-top: 1px solid var(--line);
+      }
+      .unchanged-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 15px;
+        margin-bottom: 18px;
+      }
+      .unchanged-heading h2 {
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .unchanged-heading p {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .unchanged-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .unchanged-item {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .unchanged-icon {
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        color: var(--muted);
+      }
+      .unchanged-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+      .unchanged-item h3 {
+        font-size: 12px;
+        font-weight: 500;
+        margin: 1px 0 6px;
+      }
+      .unchanged-item p {
+        font-size: 11px;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        margin-top: 38px;
+        padding: 22px 0 26px;
+        color: var(--muted);
+        font-size: 10px;
+        border-top: 1px solid #292929;
+        line-height: 1.7;
+      }
+      footer span:first-child {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      @media (min-width: 1500px) {
+        .intro {
+          padding-top: 56px;
+        }
+      }
+      @media (max-width: 1120px) {
+        .shell {
+          width: calc(100% - 48px);
+        }
+        .workspace {
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 24px;
+        }
+        .column-heads,
+        .cell-pair {
+          grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+          gap: 6px;
+        }
+        .cell-top {
+          padding: 14px 12px 11px;
+          gap: 5px;
+        }
+        .cell-top h3 {
+          gap: 6px;
+          font-size: 12px;
+        }
+        .cell-values {
+          padding-inline: 12px;
+        }
+        .outpoint {
+          padding-inline: 12px;
+        }
+        .cell-footer {
+          padding-inline: 12px;
+        }
+        .cell-values div {
+          display: block;
+        }
+        .cell-values dd {
+          text-align: left;
+          margin-top: 3px;
+        }
+        .cell-values .primary dd {
+          font-size: 16px;
+        }
+        .unchanged-grid {
+          gap: 16px;
+        }
+      }
+      @media (max-width: 880px) {
+        .workspace {
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        .quote {
+          position: static;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0 16px;
+        }
+        .section-label {
+          grid-column: 1 / -1;
+        }
+        .quote-arrow {
+          display: none;
+        }
+        .buy-box {
+          padding-top: 22px;
+        }
+        .quote-facts {
+          margin-top: 16px;
+        }
+        .pool-baseline {
+          margin: 16px 0 0;
+          padding: 0 0 0 16px;
+          border-top: 0;
+          border-left: 1px solid var(--line);
+        }
+        .model-note {
+          grid-column: 1 / -1;
+          margin-top: 12px;
+        }
+        .cell-values div {
+          display: flex;
+        }
+        .cell-values dd {
+          text-align: right;
+          margin: 0;
+        }
+        .cell-values .primary {
+          display: block;
+        }
+        .cell-values .primary dd {
+          text-align: left;
+        }
+        .cell-top {
+          padding: 16px 17px 11px;
+        }
+        .cell-top h3 {
+          font-size: 13px;
+          gap: 9px;
+        }
+        .cell-values,
+        .outpoint {
+          padding-inline: 17px;
+        }
+        .cell-footer {
+          padding-inline: 17px;
+        }
+      }
+      @media (max-width: 600px) {
+        .shell {
+          width: calc(100% - 36px);
+        }
+        .topbar {
+          min-height: 78px;
+        }
+        .brand {
+          font-size: 20px;
+          gap: 10px;
+        }
+        .header-meta .eyebrow {
+          display: none;
+        }
+        .site-link {
+          padding-right: 0;
+          font-size: 12px;
+        }
+        .intro {
+          padding: 32px 0 26px;
+        }
+        h1 {
+          letter-spacing: -1px;
+        }
+        .intro p {
+          font-size: 13px;
+        }
+        .quote {
+          display: block;
+        }
+        .quote-arrow {
+          display: grid;
+        }
+        .buy-box {
+          padding-top: 26px;
+        }
+        .output-amount {
+          font-size: 32px;
+        }
+        .quote-facts {
+          margin: 20px 2px 0;
+        }
+        .pool-baseline {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          margin-top: 20px;
+          padding: 17px 0 0;
+        }
+        .pool-baseline p {
+          font-size: 12px;
+        }
+        .diagram-header {
+          align-items: flex-start;
+        }
+        .atomic-label {
+          font-size: 10px;
+          padding-top: 2px;
+        }
+        .column-heads {
+          display: none;
+        }
+        .cell-pair {
+          grid-template-columns: 1fr;
+          gap: 9px;
+          margin-bottom: 23px;
+        }
+        .connector svg {
+          transform: rotate(90deg);
+          width: 20px;
+          height: 20px;
+        }
+        .cell-values div {
+          display: flex;
+        }
+        .cell-values .primary dd {
+          font-size: 20px;
+        }
+        .cell-top h3 {
+          font-size: 14px;
+        }
+        .outpoint {
+          font-size: 11px;
+        }
+        .badge {
+          font-size: 10px;
+        }
+        .cell-values div {
+          font-size: 12px;
+        }
+        .unchanged {
+          margin-top: 24px;
+        }
+        .unchanged-heading {
+          display: block;
+        }
+        .unchanged-heading p {
+          margin-top: 7px;
+        }
+        .unchanged-grid {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        .unchanged-item p {
+          font-size: 12px;
+        }
+        footer {
+          flex-direction: column;
+          margin-top: 28px;
+          gap: 5px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg class="sr-only" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6" /></symbol>
+        <symbol id="icon-cell" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="4" />
+          <path d="M9 4v16M4 10h16" />
+        </symbol>
+        <symbol id="icon-wallet" viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="15" rx="3" />
+          <path d="M3 8V6a2 2 0 0 1 2-2h12m4 6h-6v6h6m-3-3h.01" />
+        </symbol>
+        <symbol id="icon-code" viewBox="0 0 24 24">
+          <path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 3l-4 18" />
+        </symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      </defs>
+    </svg>
+    <div id="swap-cell-transition" class="shell">
+      <header class="topbar">
+        <a class="brand" href="https://ckbswap.site" target="_blank" rel="noopener noreferrer"
+          ><span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Ckb Swap</a
+        >
+        <div class="header-meta">
+          <span class="eyebrow">Protocol explorer</span
+          ><a
+            class="site-link"
+            href="https://ckbswap.site"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Open app<svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              aria-hidden="true"
+            >
+              <path d="M4 12 12 4M4 4h8v8" /></svg
+          ></a>
+        </div>
+      </header>
+      <main>
+        <section class="intro" aria-labelledby="page-title">
+          <div class="intro-top">
+            <span class="dot" aria-hidden="true"></span
+            ><span class="eyebrow">Inside a CKB → SWAP exchange</span>
+          </div>
+          <h1 id="page-title">A swap, cell by cell.</h1>
+          <p>
+            Old Cells are consumed. New Cells carry the updated balances.<br />Follow both sides of
+            one atomic transaction.
+          </p>
+        </section>
+        <div class="workspace">
+          <section class="quote" aria-labelledby="quote-title">
+            <div class="section-label">
+              <h2 id="quote-title">Explore a swap</h2>
+              <span class="tag">ILLUSTRATIVE</span>
+            </div>
+            <div class="asset-box">
+              <div class="asset-heading">
+                <label for="swap-ckb-input">You pay</label
+                ><span class="token"><span class="token-icon" aria-hidden="true">N</span>CKB</span>
+              </div>
+              <input
+                id="swap-ckb-input"
+                class="amount"
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+                value="10"
+                inputmode="numeric"
+                aria-describedby="amount-help amount-error"
+              />
+              <p id="amount-help" class="asset-caption">Adjust the amount to update every Cell.</p>
+              <label class="sr-only" for="swap-ckb-range">CKB input amount, from 1 to 100</label>
+              <input
+                id="swap-ckb-range"
+                class="range"
+                type="range"
+                min="1"
+                max="100"
+                step="1"
+                value="10"
+              />
+              <div class="range-limits" aria-hidden="true">
+                <span>1 CKB</span><span>100 CKB</span>
+              </div>
+              <div class="presets" role="group" aria-label="Choose a CKB amount">
+                <button type="button" data-preset="1" aria-pressed="false">1</button
+                ><button type="button" data-preset="10" aria-pressed="true">10</button
+                ><button type="button" data-preset="50" aria-pressed="false">50</button
+                ><button type="button" data-preset="100" aria-pressed="false">100</button>
+              </div>
+              <p id="amount-error" class="error" role="alert" hidden>
+                Enter a whole number from 1 to 100 CKB.
+              </p>
+            </div>
+            <div class="quote-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                <path d="M12 4v15m-6-6 6 6 6-6" />
+              </svg>
+            </div>
+            <div class="asset-box buy-box">
+              <div class="asset-heading">
+                <span>You receive</span
+                ><span class="token"
+                  ><span class="token-icon swap" aria-hidden="true">S</span>SWAP</span
+                >
+              </div>
+              <output
+                id="swap-output"
+                for="swap-ckb-input swap-ckb-range"
+                class="amount output-amount"
+                aria-live="off"
+                >98.71580343</output
+              >
+              <p class="asset-caption">Calculated with the 0.3% pool fee.</p>
+            </div>
+            <dl class="quote-facts">
+              <div>
+                <dt>Pool fee</dt>
+                <dd>
+                  <span data-value="fee">0.03</span> CKB
+                  <span style="color: var(--muted)">(0.3%)</span>
+                </dd>
+              </div>
+              <div>
+                <dt>LP supply</dt>
+                <dd>Unchanged</dd>
+              </div>
+              <div>
+                <dt>State nonce</dt>
+                <dd>7 → 8</dd>
+              </div>
+            </dl>
+            <div class="pool-baseline">
+              <span class="eyebrow">Starting reserves</span>
+              <p>1,000 CKB / 10,000 SWAP</p>
+            </div>
+            <p class="model-note">
+              Each amount starts from the same example pool. Network fees and wallet change are
+              shown conceptually.
+            </p>
+          </section>
+          <section class="transition" aria-labelledby="transition-title">
+            <div class="diagram-header">
+              <h2 id="transition-title">The Cell transition</h2>
+              <span class="atomic-label"
+                ><svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="7" width="10" height="7" rx="2" />
+                  <path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg
+                >One atomic transaction</span
+              >
+            </div>
+            <div class="column-heads" aria-hidden="true">
+              <div class="column-title">
+                <strong>Inputs</strong><span>Consumed on confirmation</span>
+              </div>
+              <span></span>
+              <div class="column-title after">
+                <strong>Outputs</strong><span>New live Cells</span>
+              </div>
+            </div>
+            <div class="cell-pair">
+              <article class="cell" aria-label="Input: old Pool State Cell">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-cell" /></svg
+                    >Pool State
+                  </h3>
+                  <span class="badge">Consumed</span>
+                </div>
+                <code class="outpoint">TX_old:0</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>CKB reserve · held in capacity</dt>
+                    <dd>1,000 <small>CKB</small></dd>
+                  </div>
+                  <div>
+                    <dt>SWAP reserve record</dt>
+                    <dd>10,000</dd>
+                  </div>
+                  <div>
+                    <dt>Total capacity</dt>
+                    <dd>1,500 CKB</dd>
+                  </div>
+                  <div>
+                    <dt>Nonce</dt>
+                    <dd>7</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>Pool identity + scripts</span><span>Preserved →</span>
+                </div>
+              </article>
+              <div class="connector" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                  <use href="#icon-arrow" />
+                </svg>
+              </div>
+              <article class="cell new" aria-label="Output: new Pool State Cell">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-cell" /></svg
+                    >Pool State
+                  </h3>
+                  <span class="badge">New · live</span>
+                </div>
+                <code class="outpoint">TX_new:0</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>CKB reserve · held in capacity</dt>
+                    <dd>
+                      <span data-value="reserve0" class="changed">1,010</span> <small>CKB</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>SWAP reserve record</dt>
+                    <dd data-value="reserve1" class="changed">9,901.28419657</dd>
+                  </div>
+                  <div>
+                    <dt>Total capacity</dt>
+                    <dd><span data-value="capacity">1,510</span> CKB</dd>
+                  </div>
+                  <div>
+                    <dt>Nonce</dt>
+                    <dd class="changed">8</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>Same poolId · updated state</span><span>LP unchanged</span>
+                </div>
+              </article>
+            </div>
+            <div class="cell-pair">
+              <article class="cell" aria-label="Input: old SWAP Reserve Cell">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-cell" /></svg
+                    >SWAP Reserve
+                  </h3>
+                  <span class="badge">Consumed</span>
+                </div>
+                <code class="outpoint">TX_old:1</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>Token balance · stored in data</dt>
+                    <dd>10,000 <small>SWAP</small></dd>
+                  </div>
+                  <div>
+                    <dt>Cell capacity</dt>
+                    <dd>200 CKB</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>Official xUDT type</span><span>Pool lock · role 2</span>
+                </div>
+              </article>
+              <div class="connector" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                  <use href="#icon-arrow" />
+                </svg>
+              </div>
+              <article class="cell new" aria-label="Output: new SWAP Reserve Cell">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-cell" /></svg
+                    >SWAP Reserve
+                  </h3>
+                  <span class="badge">New · live</span>
+                </div>
+                <code class="outpoint">TX_new:1</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>Token balance · stored in data</dt>
+                    <dd>
+                      <span data-value="reserve1" class="changed">9,901.28419657</span>
+                      <small>SWAP</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Cell capacity</dt>
+                    <dd>200 CKB</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>Same xUDT type + poolId</span><span>Updated data</span>
+                </div>
+              </article>
+            </div>
+            <div class="cell-pair">
+              <article class="cell" aria-label="Input: user wallet Cell group">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-wallet" /></svg
+                    >Wallet inputs
+                  </h3>
+                  <span class="badge">Consumed</span>
+                </div>
+                <code class="outpoint">User-authorized Cell group</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>CKB sent to the pool</dt>
+                    <dd><span data-value="input">10</span> <small>CKB</small></dd>
+                  </div>
+                  <div>
+                    <dt>Also funds</dt>
+                    <dd>Receive capacity + fee</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>User wallet lock</span><span>Signature required</span>
+                </div>
+              </article>
+              <div class="connector" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                  <use href="#icon-arrow" />
+                </svg>
+              </div>
+              <article class="cell new" aria-label="Output: user wallet Cell group">
+                <div class="cell-top">
+                  <h3>
+                    <svg
+                      class="cell-icon"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      aria-hidden="true"
+                    >
+                      <use href="#icon-wallet" /></svg
+                    >Wallet outputs
+                  </h3>
+                  <span class="badge">New · live</span>
+                </div>
+                <code class="outpoint">SWAP receive Cell + CKB change</code>
+                <dl class="cell-values">
+                  <div class="primary">
+                    <dt>SWAP received</dt>
+                    <dd>
+                      <span data-value="output" class="changed">98.71580343</span>
+                      <small>SWAP</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Receive Cell capacity</dt>
+                    <dd>200 CKB</dd>
+                  </div>
+                </dl>
+                <div class="cell-footer">
+                  <span>User wallet lock</span><span>User-controlled</span>
+                </div>
+              </article>
+            </div>
+            <div class="result">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <use href="#icon-check" />
+              </svg>
+              <p id="swap-result" role="status" aria-live="polite" aria-atomic="true">
+                On confirmation: 10 CKB enters the pool, and 98.71580343 SWAP goes to the wallet.
+                All Cell changes commit together.
+              </p>
+            </div>
+            <details class="technical">
+              <summary>Under the hood: scripts, capacity &amp; pricing</summary>
+              <div class="technical-content">
+                <p>
+                  <strong>Pool State.</strong> Lock args: <code>01 || poolId</code>. Type args:
+                  <code>00 || poolId</code>. Both scripts and the poolId stay the same; the new
+                  state records the updated reserves, increments the nonce, and keeps total LP
+                  unchanged. Each output has a new OutPoint.
+                </p>
+                <p>
+                  <strong>Reserve Cell.</strong> The role-2 pool lock binds the same poolId. The
+                  official SWAP xUDT type validates token conservation. Its data holds the actual
+                  token balance; the Pool State records the matching reserve.
+                </p>
+                <p>
+                  <strong>CKB capacity.</strong> The State Cell holds a 500 CKB storage base plus
+                  the native CKB reserve. The SWAP Reserve Cell keeps 200 CKB. The wallet separately
+                  funds the illustrated 200 CKB receive Cell and network fees, with remaining CKB
+                  returned as change. Receive Cell capacity stays under the user's control.
+                </p>
+                <p class="formula">
+                  <strong>Exact-input pricing · 8 decimal places</strong><br /><code
+                    >SWAP out = floor(ΔCKB × 997 × SWAP reserve<br />
+                    / (CKB reserve × 1000 + ΔCKB × 997))</code
+                  ><br />Calculated in integer base units. The full CKB input enters the reserve;
+                  the 0.3% pool fee remains in the pool.
+                </p>
+                <p>
+                  <strong>One transition, one transaction.</strong> Input and output groups are
+                  validated together. Two swaps cannot both consume the same live State Cell: a
+                  competing transaction must rebuild against the updated pool state.
+                </p>
+              </div>
+            </details>
+          </section>
+        </div>
+        <section class="unchanged" aria-labelledby="unchanged-title">
+          <div class="unchanged-heading">
+            <h2 id="unchanged-title">What stays untouched</h2>
+            <p>These Cells are not consumed by the swap.</p>
+          </div>
+          <div class="unchanged-grid">
+            <article class="unchanged-item">
+              <span class="unchanged-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <use href="#icon-cell" /></svg
+              ></span>
+              <div>
+                <h3>Factory Cell</h3>
+                <p>Not involved in this exchange.<br />The existing Cell remains live.</p>
+              </div>
+            </article>
+            <article class="unchanged-item">
+              <span class="unchanged-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <use href="#icon-wallet" /></svg
+              ></span>
+              <div>
+                <h3>User LP Cells</h3>
+                <p>
+                  No LP tokens are minted or burned.<br />LP balances and total supply stay the
+                  same.
+                </p>
+              </div>
+            </article>
+            <article class="unchanged-item">
+              <span class="unchanged-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <use href="#icon-code" /></svg
+              ></span>
+              <div>
+                <h3>Swap / xUDT code Cells</h3>
+                <p>
+                  Referenced through CellDeps for validation.<br />The code Cells are not spent.
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <span><span class="dot" aria-hidden="true"></span>Nervos CKB · Cell-native liquidity</span
+        ><span>Illustrative pool · Not live balances · No transaction is submitted</span>
+      </footer>
+    </div>
+    <script>
+      ;(() => {
+        const root = document.getElementById('swap-cell-transition')
+        const input = root.querySelector('#swap-ckb-input')
+        const range = root.querySelector('#swap-ckb-range')
+        const error = root.querySelector('#amount-error')
+        const output = root.querySelector('#swap-output')
+        const result = root.querySelector('#swap-result')
+        const presets = [...root.querySelectorAll('[data-preset]')]
+        const bindings = [...root.querySelectorAll('[data-value]')]
+        const unit = 100000000n
+        const reserve0 = 1000n * unit
+        const reserve1 = 10000n * unit
+        let amount = 10
+
+        function format(value) {
+          const whole = (value / unit).toLocaleString('en-US')
+          const fraction = (value % unit).toString().padStart(8, '0').replace(/0+$/, '')
+          return whole + (fraction ? '.' + fraction : '')
+        }
+
+        function render() {
+          const paid = BigInt(amount) * unit
+          const received = (paid * 997n * reserve1) / (reserve0 * 1000n + paid * 997n)
+          const values = {
+            input: format(paid),
+            output: format(received),
+            reserve0: format(reserve0 + paid),
+            reserve1: format(reserve1 - received),
+            capacity: format(500n * unit + reserve0 + paid),
+            fee: format((paid * 3n) / 1000n),
+          }
+          range.value = String(amount)
+          range.setAttribute('aria-valuetext', `${amount} CKB`)
+          output.value = values.output
+          for (const node of bindings) node.textContent = values[node.dataset.value]
+          for (const button of presets)
+            button.setAttribute('aria-pressed', String(Number(button.dataset.preset) === amount))
+          result.textContent = `On confirmation: ${values.input} CKB enters the pool, and ${values.output} SWAP goes to the wallet. All Cell changes commit together.`
+        }
+
+        function validate() {
+          const next = Number(input.value)
+          const valid =
+            input.value.trim() !== '' && Number.isInteger(next) && next >= 1 && next <= 100
+          error.hidden = valid
+          input.setAttribute('aria-invalid', String(!valid))
+          return valid
+        }
+
+        function save() {
+          try {
+            window.openai
+              ?.setWidgetState?.({
+                modelContent: {
+                  ckbInput: amount,
+                  operation: 'CKB to SWAP exact input',
+                  initialCkbReserve: 1000,
+                  initialSwapReserve: 10000,
+                },
+                privateContent: null,
+              })
+              ?.catch(() => {})
+          } catch {
+            /* The standalone page also works without a widget host. */
+          }
+        }
+
+        function setAmount(next, persist = false) {
+          if (!Number.isInteger(next) || next < 1 || next > 100) return
+          amount = next
+          input.value = String(amount)
+          validate()
+          render()
+          if (persist) save()
+        }
+
+        input.addEventListener('input', () => {
+          if (validate()) {
+            amount = Number(input.value)
+            render()
+          }
+        })
+        input.addEventListener('change', () => {
+          if (validate()) save()
+        })
+        input.addEventListener('blur', () => {
+          if (!validate()) setAmount(amount)
+        })
+        range.addEventListener('input', () => setAmount(Number(range.value)))
+        range.addEventListener('change', save)
+        for (const button of presets)
+          button.addEventListener('click', () => setAmount(Number(button.dataset.preset), true))
+        window.addEventListener('openai:set_globals', (event) => {
+          const saved = event.detail?.globals?.widgetState
+          if (saved) setAmount(Number(saved.modelContent?.ckbInput))
+        })
+        const restored = Number(window.openai?.widgetState?.modelContent?.ckbInput)
+        setAmount(Number.isInteger(restored) && restored >= 1 && restored <= 100 ? restored : 10)
+      })()
+    </script>
+  </body>
+</html>
