@@ -1,5 +1,9 @@
 # CKB Swap Contracts
 
+
+[**Explore the interactive Cell transition →**](https://ckbswap.github.io/contracts/)
+
+See how a CKB → SWAP exchange consumes and creates Cells. Adjust the amount to explore changes to pool reserves and Cell capacity.
 A constant-product automated market maker (AMM) implemented in Rust for CKB. The protocol supports CKB/xUDT and xUDT/xUDT pools, liquidity provision, liquidity withdrawal, and swaps with either a fixed input or a fixed output.
 
 The repository separates pool calculations and binary encoding from on-chain transaction validation. Both crates use `no_std`.
